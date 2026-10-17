@@ -12,9 +12,12 @@ let package = Package(
     name: "libASPL",
     platforms: [.macOS("26.0")],
     products: [
+        .library(name: "ASPL", type: .static, targets: ["ASPL"]),
         .library(name: "libASPL", type: .static, targets: ["libASPL"]),
     ],
     targets: [
+        .target(name: "ASPL", dependencies: ["ASPLBridge"]),
+        .target(name: "ASPLBridge", dependencies: ["libASPL"]),
         .target(
             name: "libASPL",
             path: ".",
@@ -33,6 +36,7 @@ let package = Package(
                 .linkedFramework("CoreFoundation"),
             ]
         ),
+        .testTarget(name: "ASPLTests", dependencies: ["ASPL"]),
     ],
     cxxLanguageStandard: .cxx17
 )

@@ -77,10 +77,16 @@ make install
 
 ## Swift Package Manager
 
-This fork provides the `libASPL` static library product for macOS 26.0 or later.
-SwiftPM compiles the existing C++17 sources and links CoreFoundation. The
-checked-in generated sources are used directly, so this build does not require
-CMake or code generation.
+This fork provides two static library products for macOS 26.0 or later:
+
+* `ASPL`: the Swift API for device configuration and driver ownership.
+* `libASPL`: the original C++17 API for C++ consumers.
+
+The Swift API depends on an internal `ASPLBridge` target, which presents a C
+interface to the C++ implementation. Swift consumers only depend on `ASPL` and
+do not need C++ interoperability settings. SwiftPM links CoreFoundation and
+compiles the checked-in generated sources directly, without CMake or code
+generation.
 
 Build with an Xcode toolchain that includes the macOS 26 SDK or later:
 
@@ -95,7 +101,38 @@ Add this repository to the consuming package's dependencies:
 .package(url: "https://github.com/bonjour-studio/libASPL.git", branch: "main"),
 ```
 
-Add the product to the C++ driver target's dependencies:
+Add the Swift product to the consuming target's dependencies:
+
+```swift
+.product(name: "ASPL", package: "libASPL"),
+```
+
+```swift
+import ASPL
+
+let configuration = DeviceConfiguration(
+    name: "Example Microphone",
+    manufacturer: "Example Manufacturer",
+    uid: "com.example.microphone",
+    sampleRate: 48000,
+    channelCount: 1,
+    streams: [.input]
+)
+let driver = try Driver(configuration: configuration)
+```
+
+`Driver` owns one device with input streams, output streams, or both. Input is
+audio read by client apps; output is audio written by client apps. Streams use
+interleaved, signed 16-bit PCM and include volume and mute controls.
+
+`driver.reference` exposes the HAL interface for a driver's factory entry point.
+Retain the Swift `Driver` for the entire lifetime of that reference. Creating the
+object in an ordinary app does not publish a system audio device. The consuming
+driver project owns its factory, type UUID check, bundle metadata, signing, and
+installation. The Swift API currently supports construction and HAL property
+access; custom audio I/O handlers and transport are not exposed yet.
+
+C++ consumers can instead depend on the original library:
 
 ```swift
 .product(name: "libASPL", package: "libASPL"),
@@ -106,9 +143,25 @@ headers such as `<aspl/Driver.hpp>`. For reproducible integration, use a specifi
 commit with `.package(url: ..., revision: ...)` instead of following `main`.
 The upstream version tags predate this fork's SwiftPM support.
 
-The package exposes the existing C++ API. It does not add a Swift API or build,
-install, or load a `.driver` bundle. The consuming driver project owns its entry
-point, bundle metadata, signing, and installation.
+The implementation is split into three targets: `ASPL` in `Sources/ASPL/`,
+`ASPLBridge` in `Sources/ASPLBridge/`, and `libASPL` in the original `src/` and
+`include/` directories. The bridge owns C++ objects and keeps C++ types and
+exceptions out of the Swift interface.
+
+Run the Swift API tests and the standalone Swift and C++ consumers in both build
+configurations:
+
+```sh
+for configuration in debug release; do
+    xcrun swift test -c "$configuration"
+    xcrun swift run --package-path Tests/PackageIntegration -c "$configuration" SwiftConsumer
+    xcrun swift run --package-path Tests/PackageIntegration -c "$configuration" CxxConsumer
+done
+```
+
+The tests query the in-process HAL interface and validate package consumption.
+They do not install or load a system audio driver. Distributions must retain the
+license notices listed in [License](#license).
 
 ## Status
 

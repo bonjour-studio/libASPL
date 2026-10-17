@@ -18,14 +18,15 @@ public final class Driver {
 
     private let handle: OpaquePointer
 
-    public init(configuration: DeviceConfiguration) throws {
+    public init(configuration: DeviceConfiguration, ioHandler: IOHandler = IOHandler()) throws {
+        let sampleSize: UInt32 = configuration.sampleFormat == .float32 ? 4 : 2
         guard !configuration.name.isEmpty,
               !configuration.uid.isEmpty,
               ![configuration.name, configuration.manufacturer, configuration.uid]
                 .contains(where: { $0.utf8.contains(0) }),
               configuration.sampleRate > 0,
               configuration.channelCount > 0,
-              configuration.channelCount <= UInt32.max / UInt32(MemoryLayout<Int16>.size),
+              configuration.channelCount <= UInt32.max / sampleSize,
               !configuration.streams.isEmpty else {
             throw CreationError.invalidConfiguration
         }
@@ -37,7 +38,9 @@ public final class Driver {
             configuration.sampleRate,
             configuration.channelCount,
             configuration.streams.contains(.input),
-            configuration.streams.contains(.output)
+            configuration.streams.contains(.output),
+            configuration.sampleFormat == .float32,
+            ASPLIOCallbacks(context: ioHandler.context, read: ioHandler.read, write: ioHandler.write, reset: ioHandler.reset)
         ) else {
             throw CreationError.constructionFailed
         }

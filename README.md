@@ -123,14 +123,20 @@ let driver = try Driver(configuration: configuration)
 
 `Driver` owns one device with input streams, output streams, or both. Input is
 audio read by client apps; output is audio written by client apps. Streams use
-interleaved, signed 16-bit PCM and include volume and mute controls.
+interleaved PCM and include volume and mute controls. The default is signed
+16-bit PCM; pass `sampleFormat: .float32` for native-endian Float32.
 
 `driver.reference` exposes the HAL interface for a driver's factory entry point.
 Retain the Swift `Driver` for the entire lifetime of that reference. Creating the
 object in an ordinary app does not publish a system audio device. The consuming
 driver project owns its factory, type UUID check, bundle metadata, signing, and
-installation. The Swift API currently supports construction and HAL property
-access; custom audio I/O handlers and transport are not exposed yet.
+installation. Pass an `IOHandler` to `Driver` to supply native PCM reads, mixed output writes,
+and session resets. It accepts C function pointers plus a borrowed context. Keep
+that context alive until the driver is destroyed. Read/write callbacks receive
+sample-frame timestamps and byte counts; they run serially on the audio thread
+and must not allocate, block, or throw. Reset runs before the first client starts
+and after the last client stops. Missing read handlers produce silence. The
+consumer implements its own transport and must fill the entire read buffer.
 
 C++ consumers can instead depend on the original library:
 

@@ -16,6 +16,13 @@ extern "C" {
 
 typedef struct ASPLDriverHandle ASPLDriverHandle;
 
+typedef struct ASPLIOCallbacks {
+    void* _Nullable context;
+    void (* _Nullable read)(void* _Nullable, Float64, void* _Nullable, UInt32);
+    void (* _Nullable write)(void* _Nullable, Float64, const void* _Nullable, UInt32);
+    void (* _Nullable reset)(void* _Nullable);
+} ASPLIOCallbacks;
+
 // Strings are copied during creation. Returns null if C++ construction fails.
 ASPLDriverHandle* _Nullable ASPLDriverCreate(
     const char* _Nonnull name,
@@ -24,7 +31,9 @@ ASPLDriverHandle* _Nullable ASPLDriverCreate(
     UInt32 sampleRate,
     UInt32 channelCount,
     bool inputEnabled,
-    bool outputEnabled);
+    bool outputEnabled,
+    bool float32,
+    ASPLIOCallbacks callbacks);
 
 void ASPLDriverDestroy(ASPLDriverHandle* _Nonnull handle);
 

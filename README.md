@@ -4,6 +4,7 @@
 
 - [Synopsis](#synopsis)
 - [Instructions](#instructions)
+- [Swift Package Manager](#swift-package-manager)
 - [Status](#status)
 - [Versioning](#versioning)
 - [API reference](#api-reference)
@@ -73,6 +74,41 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/my/install/path ../..
 make -j4
 make install
 ```
+
+## Swift Package Manager
+
+This fork provides the `libASPL` static library product for macOS 26.0 or later.
+SwiftPM compiles the existing C++17 sources and links CoreFoundation. The
+checked-in generated sources are used directly, so this build does not require
+CMake or code generation.
+
+Build with an Xcode toolchain that includes the macOS 26 SDK or later:
+
+```sh
+xcrun swift build
+xcrun swift build -c release
+```
+
+Add this repository to the consuming package's dependencies:
+
+```swift
+.package(url: "https://github.com/bonjour-studio/libASPL.git", branch: "main"),
+```
+
+Add the product to the C++ driver target's dependencies:
+
+```swift
+.product(name: "libASPL", package: "libASPL"),
+```
+
+Set the consuming package's `cxxLanguageStandard` to `.cxx17`, then include
+headers such as `<aspl/Driver.hpp>`. For reproducible integration, use a specific
+commit with `.package(url: ..., revision: ...)` instead of following `main`.
+The upstream version tags predate this fork's SwiftPM support.
+
+The package exposes the existing C++ API. It does not add a Swift API or build,
+install, or load a `.driver` bundle. The consuming driver project owns its entry
+point, bundle metadata, signing, and installation.
 
 ## Status
 

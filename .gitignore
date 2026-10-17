@@ -1,4 +1,5 @@
 /build
+/.build
 /html
 .cache
 compile_commands.json

@@ -23,6 +23,15 @@ typedef struct ASPLIOCallbacks {
     void (* _Nullable reset)(void* _Nullable);
 } ASPLIOCallbacks;
 
+// Control-thread custom properties. copyValue transfers a +1 reference to HAL;
+// setValue borrows its argument. Keep context alive for the driver's lifetime.
+typedef struct ASPLPropertyCallbacks {
+    AudioObjectPropertySelector selector;
+    void* _Nullable context;
+    CFPropertyListRef _Nullable (* _Nonnull copyValue)(void* _Nullable);
+    void (* _Nullable setValue)(void* _Nullable, CFPropertyListRef _Nonnull);
+} ASPLPropertyCallbacks;
+
 // Strings are copied during creation. Returns null if C++ construction fails.
 ASPLDriverHandle* _Nullable ASPLDriverCreate(
     const char* _Nonnull name,
@@ -33,7 +42,9 @@ ASPLDriverHandle* _Nullable ASPLDriverCreate(
     bool inputEnabled,
     bool outputEnabled,
     bool float32,
-    ASPLIOCallbacks callbacks);
+    ASPLIOCallbacks callbacks,
+    const ASPLPropertyCallbacks* _Nullable properties,
+    UInt32 propertyCount);
 
 void ASPLDriverDestroy(ASPLDriverHandle* _Nonnull handle);
 

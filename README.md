@@ -138,6 +138,15 @@ and must not allocate, block, or throw. Reset runs before the first client start
 and after the last client stops. Missing read handlers produce silence. The
 consumer implements its own transport and must fill the entire read buffer.
 
+Pass `properties: [DeviceProperty(...)]` to `Driver` to expose custom device
+properties through Core Audio. Each selector must be unique and must not reuse a
+built-in selector. Values are `CFPropertyList` objects marshalled by HAL across
+processes. The C getter returns a retained (+1) value; the optional setter borrows
+its value. A missing setter makes the property read-only. These callbacks run on
+control threads and can overlap audio I/O; the consumer owns synchronization and
+keeps each borrowed context alive until driver destruction. Do not perform these
+property calls on a realtime audio thread.
+
 C++ consumers can instead depend on the original library:
 
 ```swift

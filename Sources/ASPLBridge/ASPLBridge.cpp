@@ -56,7 +56,9 @@ ASPLDriverHandle* ASPLDriverCreate(
     bool inputEnabled,
     bool outputEnabled,
     bool float32,
-    ASPLIOCallbacks callbacks)
+    ASPLIOCallbacks callbacks,
+    const ASPLPropertyCallbacks* properties,
+    UInt32 propertyCount)
 {
     // C++ exceptions must not cross the C boundary into Swift.
     try {
@@ -69,6 +71,16 @@ ASPLDriverHandle* ASPLDriverCreate(
         parameters.ChannelCount = channelCount;
 
         auto device = std::make_shared<aspl::Device>(context, parameters);
+        for (UInt32 i = 0; i < propertyCount; ++i) {
+            const auto property = properties[i];
+            if (!property.copyValue) return nullptr;
+            std::function<void(CFPropertyListRef)> setter;
+            if (property.setValue) {
+                setter = [property](CFPropertyListRef value) { property.setValue(property.context, value); };
+            }
+            device->RegisterCustomProperty(property.selector,
+                std::function<CFPropertyListRef()>([property] { return property.copyValue(property.context); }), setter);
+        }
         for (auto direction : {aspl::Direction::Input, aspl::Direction::Output}) {
             if ((direction == aspl::Direction::Input && !inputEnabled) ||
                 (direction == aspl::Direction::Output && !outputEnabled)) continue;

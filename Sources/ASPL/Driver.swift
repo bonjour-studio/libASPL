@@ -18,7 +18,7 @@ public final class Driver {
 
     private let handle: OpaquePointer
 
-    public init(configuration: DeviceConfiguration, ioHandler: IOHandler = IOHandler()) throws {
+    public init(configuration: DeviceConfiguration, ioHandler: IOHandler = IOHandler(), properties: [DeviceProperty] = []) throws {
         let sampleSize: UInt32 = configuration.sampleFormat == .float32 ? 4 : 2
         guard !configuration.name.isEmpty,
               !configuration.uid.isEmpty,
@@ -27,21 +27,29 @@ public final class Driver {
               configuration.sampleRate > 0,
               configuration.channelCount > 0,
               configuration.channelCount <= UInt32.max / sampleSize,
-              !configuration.streams.isEmpty else {
+              !configuration.streams.isEmpty,
+              Set(properties.map(\.selector)).count == properties.count else {
             throw CreationError.invalidConfiguration
         }
 
-        guard let handle = ASPLDriverCreate(
-            configuration.name,
-            configuration.manufacturer,
-            configuration.uid,
-            configuration.sampleRate,
-            configuration.channelCount,
-            configuration.streams.contains(.input),
-            configuration.streams.contains(.output),
-            configuration.sampleFormat == .float32,
-            ASPLIOCallbacks(context: ioHandler.context, read: ioHandler.read, write: ioHandler.write, reset: ioHandler.reset)
-        ) else {
+        let callbacks = properties.map {
+            ASPLPropertyCallbacks(selector: $0.selector, context: $0.context, copyValue: $0.copyValue, setValue: $0.setValue)
+        }
+        let created = callbacks.withUnsafeBufferPointer { properties in
+            ASPLDriverCreate(
+                configuration.name,
+                configuration.manufacturer,
+                configuration.uid,
+                configuration.sampleRate,
+                configuration.channelCount,
+                configuration.streams.contains(.input),
+                configuration.streams.contains(.output),
+                configuration.sampleFormat == .float32,
+                ASPLIOCallbacks(context: ioHandler.context, read: ioHandler.read, write: ioHandler.write, reset: ioHandler.reset),
+                properties.baseAddress, UInt32(properties.count)
+            )
+        }
+        guard let handle = created else {
             throw CreationError.constructionFailed
         }
         self.handle = handle
